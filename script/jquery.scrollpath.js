@@ -14,6 +14,9 @@
     Author: Joel Besada (http://www.joelb.me)
     Date: 2012-02-01
 
+    Modifications: Jaymz Campbell (http://jaymz.eu | http://u-dox.com)
+    Date: 2012-06-05
+
     Copyright 2012, Joel Besada
     MIT Licensed (http://www.opensource.org/licenses/mit-license.php)
 */
@@ -45,14 +48,15 @@
 		settings = {
 			wrapAround: false,
 			drawPath: false,
-			scrollBar: true
+			scrollBar: true,
+			scrollCallback: null
 		},
 
 		methods = {
 			/* Initializes the plugin */
 			init: function( options ) {
 				if ( this.length > 1 || isInitialized ) $.error( "jQuery.scrollPath can only be initialized on *one* element *once*" );
-				
+
 				$.extend( settings, options );
 				isInitialized = true;
 				element = this;
@@ -98,9 +102,32 @@
 				}
 				animateSteps( distance, duration, easing, callback );
 				return this;
+			},
+
+			scrollToPercent: function(offset, duration, easing, callback) {
+				// Takes a percentage of the entire path length to 'scroll' to -
+				// useful for building static navs if certain path items do not
+				// 100% correspond to the position of a "frame" visually
+				var destination = Math.floor(offset*(pathList.length-1));
+				var distance = destination - step;
+				animateSteps(distance, duration, easing, callback);
+				return this;
+			},
+
+			getScrollHandler: function() {
+
+				return function(e) {
+					// Copied from below!!
+					var scrollDelta = e.originalEvent.wheelDelta || -e.originalEvent.detail,
+					dir = scrollDelta / ( Math.abs( scrollDelta ) );
+					e.preventDefault();
+					$( window ).scrollTop( 0 ).scrollLeft( 0 );
+					scrollSteps( -dir * STEP_SIZE );
+				};
+
 			}
 		};
-	
+
 	/* The Path object serves as a context to "draw" the scroll path
 		on before initializing the plugin */
 	function Path( scrollS, rotateS ) {
@@ -131,7 +158,7 @@
 				steps = Math.round( rotDistance / rotationSpeed ) * STEP_SIZE,
 				rotStep = ( radians - rotation ) / steps,
 				i = 1;
-			
+
 			if ( !HAS_TRANSFORM_SUPPORT ) {
 				if ( settings.name || settings.callback ) {
 					// In case there was a name or callback set to this path, we add an extra step with those
@@ -143,7 +170,7 @@
 				}
 				return this;
 			}
-			
+
 			for( ; i <= steps; i++ ) {
 				path.push({ x: xPos,
 							y: yPos,
@@ -233,7 +260,7 @@
 			if ( xPos !== startX || yPos !== startY ) {
 				this.lineTo( startX, startY );
 			}
-			
+
 			for ( ; i <= steps; i++ ) {
 				path.push({ x: centerX + radius * Math.cos( startAngle + radStep*i ),
 							y: centerY + radius * Math.sin( startAngle + radStep*i ),
@@ -251,6 +278,10 @@
 			canvasPath.push({ method: "arc", args: arguments });
 
 			return this;
+		};
+
+		this.setSpeed = function(speed) {
+			this.scrollSpeed = speed;
 		};
 
 		this.getPath = function() {
@@ -328,12 +359,13 @@
 							if ( Math.abs(clickStep - step) > BIG_STEP_SIZE) {
 								clickStep = step + ( 5 * STEP_SIZE * ( clickStep > step ? 1 : -1 ) );
 							}
+
 							scrollToStep(clickStep);
 
 							e.preventDefault();
 							return false;
 						});
-		
+
 		scrollHandle = $( "<div>" ).
 							addClass( "sp-scroll-handle" ).
 							on({
@@ -350,11 +382,11 @@
 							});
 		$( document ).on({
 			mouseup: function( e ) { isDragging = false;  },
-			mousemove: function( e ) {  if( isDragging ) dragScrollHandler( e ); }
+			mousemove: function( e ) { if( isDragging ) dragScrollHandler( e ); }
 		});
 
 		$( "body" ).prepend( scrollBar.append( scrollHandle ) );
-		
+
 	}
 
 	/* Initializes the path canvas */
@@ -369,18 +401,18 @@
 				top: pathObject.getPathOffsetY(),
 				"pointer-events": "none"
 			};
-		
+
 		applyPrefix( style, "user-select", "none" );
 		applyPrefix( style, "user-drag", "none" );
-		
+
 		canvas = $( "<canvas>" ).
 					addClass( "sp-canvas" ).
 					css( style ).
 					prependTo( element );
-		
+
 		canvas[ 0 ].width = pathObject.getPathWidth();
 		canvas[ 0 ].height = pathObject.getPathHeight();
-		
+
 		drawCanvasPath( canvas[ 0 ].getContext( "2d" ), pathObject.getCanvasPath() );
 	}
 
@@ -494,7 +526,21 @@
 			cb = pathList[ stepParam ].callback;
 			element.css( makeCSS( pathList[ stepParam ] ) );
 		}
-		if( scrollHandle ) scrollHandle.css( "top", stepParam / (pathList.length - 1 ) * ( scrollBar.height() - scrollHandle.height() ) + "px" );
+		if(scrollHandle) {
+			var stepTop = stepParam / (pathList.length - 1 ) * (scrollBar.height() - scrollHandle.height());
+			scrollHandle.css("top", stepTop + "px");
+
+			// If we have been provided a callback for current path position
+			// fire it our current position (normalized to path length from 0 to 1)
+			if(settings.scrollCallback) {
+				try {
+					settings.scrollCallback(stepParam/(pathList.length-1));
+				} catch(e) {
+					$.error("Your callback is causing an error", e);
+				}
+			}
+
+		}
 		if ( cb && stepParam !== step && !isAnimating ) cb();
 		step = stepParam;
 	}
@@ -525,7 +571,7 @@
 		var centeredX = node.x - $( window ).width() / 2,
 			centeredY = node.y - $( window ).height() / 2,
 			style = {};
-		
+
 		// Only use transforms when page is rotated
 		if ( normalizeAngle(node.rotate) === 0 ) {
 			style.left = -centeredX;
@@ -595,7 +641,7 @@
 			nEnd = normalizeAngle( end ),
 			diff = Math.abs( nStart - nEnd ),
 			invDiff = Math.PI * 2 - diff;
-		
+
 		if ( ( ccw && nStart < nEnd ) ||
 			( !ccw && nStart > nEnd ) ||
 			( nStart === nEnd && start !== end ) // Special case *
@@ -626,7 +672,7 @@
 		if( mod > snapValue / 2) return value + snapValue - mod;
 		return value - mod;
 	}
-	
+
 	/* Normalizes a given angle (sets it between 0 and 2 * Math.PI) */
 	function normalizeAngle( angle ) {
 		while( angle < 0 ) {
