@@ -414,8 +414,8 @@
 
 	/* Handles key scrolling (arrows and space) */
 	function keyHandler( e ) {
-		// Disable scrolling with keys when user has focus on text input elements
-		if ( /^text/.test( e.target.type ) ) return;
+		// Disable scrolling with keys when user has focus on form field elements
+		if ( /^(input|select|textarea)$/i.test( e.target.tagName ) ) return;
 		switch ( e.keyCode ) {
 			case 40: // Down Arrow
 				scrollSteps( STEP_SIZE );
