@@ -408,7 +408,6 @@
     function touchHandler( e ) {
         // Initially assume only one touch point at any one time
         // @todo Implement support for multiple touches (even if we just ignore the subsequent touches)
-        // @todo If STEP_SIZE is being enforced, we need to only trigger a scroll event when the touch has moved by at least STEP_SIZE pixels (i.e. don't reset the lastTouchX/Y vars until that threshold has been reached, and probably only move the lastTouchX/Y values closer to the current touch locations by multiples of STEP_SIZE to keep behaviour roughly as expected)
         // @todo Add option of amplifying the touch deltas
         // @todo Implement inertia in a way that hopefully behaves intuitively
         
@@ -425,16 +424,29 @@
                 direction = (greatestDelta >= 0) ? -1 : 1; // Intentionally inverted to match expected 'drag' behaviour
             console.log("t-move", deltaX, deltaY, greatestDelta, direction);
             
-            lastTouchX = touches[0].clientX;
-            lastTouchY = touches[0].clientY;
-            
             e.preventDefault();
             $( window ).scrollTop( 0 ).scrollLeft( 0 );
             
             if (settings.touchAllowTinySteps) {
                 scrollSteps(direction * Math.abs(greatestDelta));
+                
+                lastTouchX = touches[0].clientX;
+                lastTouchY = touches[0].clientY;
             } else {
-                scrollSteps(direction * STEP_SIZE);
+                // Only do anything if the touch point has moved at least one STEP_SIZE distance
+                if (Math.abs(greatestDelta) >= STEP_SIZE) {
+                    var stepCount = Math.floor(Math.abs(greatestDelta) / STEP_SIZE);
+                    scrollSteps(direction * stepCount * STEP_SIZE);
+                    
+                    // Now, which direction triggered this?
+                    if (deltaX == greatestDelta) {
+                        // The X direction!
+                        lastTouchX -= stepCount * STEP_SIZE * direction;
+                    } else {
+                        // Y
+                        lastTouchY -= stepCount * STEP_SIZE * direction;
+                    }
+                }
             }
         };
         var touchEnd = function(e) {
