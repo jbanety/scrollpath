@@ -405,21 +405,35 @@
 		context.stroke();
 	}
 
+    /* Helper function to return the touch point with the specified ID from a list of changed touches */
+    function findTouchFromId(touches, id) {
+        for (var i=0; i<touches.length; ++i) {
+            if (touches[i].identifier == id) {
+                return touches[i];
+            }
+        }
+        return null;
+    }
+    
     /* Handles touchscreen scrolling */
     function touchHandler( e ) {
-        // Initially assume only one touch point at any one time
-        // @todo Implement support for multiple touches (even if we just ignore the subsequent touches)
         // @todo Implement inertia in a way that hopefully behaves intuitively
         
         var touches = e.originalEvent.changedTouches,
             lastTouchX = touches[0].clientX,
-            lastTouchY = touches[0].clientY;
+            lastTouchY = touches[0].clientY,
+            touchId = touches[0].identifier;
         console.log("t-start", lastTouchX, lastTouchY);
         
         var touchMove = function(e) {
             var touches = e.originalEvent.changedTouches,
-                deltaX = (touches[0].clientX - lastTouchX) * settings.touchDistanceAmplificationFactor,
-                deltaY = (touches[0].clientY - lastTouchY) * settings.touchDistanceAmplificationFactor,
+                touch = findTouchFromId(touches, touchId);
+            
+            if (!touch)
+                return; // "our" touch hasn't changed
+            
+            var deltaX = (touch.clientX - lastTouchX) * settings.touchDistanceAmplificationFactor,
+                deltaY = (touch.clientY - lastTouchY) * settings.touchDistanceAmplificationFactor,
                 greatestDelta = (Math.abs(deltaX) > Math.abs(deltaY)) ? deltaX : deltaY,
                 direction = (greatestDelta >= 0) ? -1 : 1; // Intentionally inverted to match expected 'drag' behaviour
             console.log("t-move", deltaX, deltaY, greatestDelta, direction);
@@ -430,8 +444,8 @@
             if (settings.touchAllowTinySteps) {
                 scrollSteps(direction * Math.abs(greatestDelta));
                 
-                lastTouchX = touches[0].clientX;
-                lastTouchY = touches[0].clientY;
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
             } else {
                 // Only do anything if the touch point has moved at least one STEP_SIZE distance
                 if (Math.abs(greatestDelta) >= STEP_SIZE) {
@@ -449,15 +463,24 @@
                 }
             }
         };
+        var touchOff = function() {
+            $(document).off('.sp-touchsupport');
+        };
+        
         var touchEnd = function(e) {
             console.log("t-end");
-//            touchMove(e);
-            touchCancel(e);
+            var touch = findTouchFromId(e.originalEvent.changedTouches, touchId);
+            if (touch) {
+                touchOff();
+            }
             e.preventDefault();
         };
         var touchCancel = function(e) {
             console.log("t-cancel");
-            $(document).off('.sp-touchsupport');
+            var touch = findTouchFromId(e.originalEvent.changedTouches, touchId);
+            if (touch) {
+                touchOff();
+            }
             e.preventDefault();
         };
         
