@@ -50,12 +50,12 @@
 			drawPath: false,
 			scrollBar: true,
 			scrollCallback: null,
-      shadowBlur: 15,
-      shadowColor: "black",
-      strokeStyle: "white",
-      lineWidth: 10,
-      lineCap: "round",
-      lineJoin: "round"
+            shadowBlur: 15,
+            shadowColor: "black",
+            strokeStyle: "white",
+            lineWidth: 10,
+            lineCap: "round",
+            lineJoin: "round",
             touchAllowTinySteps: true, // If true, touch events can scroll by less than the STEP_SIZE
             touchDistanceAmplificationFactor: 1.0
 		},
