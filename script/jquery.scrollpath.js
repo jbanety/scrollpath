@@ -71,7 +71,8 @@
 							e.preventDefault();
 							return false;
 						}
-					}
+					},
+                    "touchstart": touchHandler
 				});
 
 				$( window ).on( "resize", function() { scrollToStep( step ); } ); // Re-centers the screen
@@ -401,6 +402,57 @@
 
 		context.stroke();
 	}
+
+    /* Handles touchscreen scrolling */
+    function touchHandler( e ) {
+        // Initially assume only one touch point at any one time
+        // @todo Implement support for multiple touches (even if we just ignore the subsequent touches)
+        // @todo Add option for whether to allow touch events to scroll by less than the STEP_SIZE
+        // @todo If STEP_SIZE is being enforced, we need to only trigger a scroll event when the touch has moved by at least STEP_SIZE pixels (i.e. don't reset the lastTouchX/Y vars until that threshold has been reached, and probably only move the lastTouchX/Y values closer to the current touch locations by multiples of STEP_SIZE to keep behaviour roughly as expected)
+        // @todo Add option of amplifying the touch deltas
+        // @todo Implement inertia in a way that hopefully behaves intuitively
+        
+        var touches = e.originalEvent.changedTouches,
+            lastTouchX = touches[0].clientX,
+            lastTouchY = touches[0].clientY;
+        console.log("t-start", lastTouchX, lastTouchY);
+        
+        var touchMove = function(e) {
+            var touches = e.originalEvent.changedTouches,
+                deltaX = (touches[0].clientX - lastTouchX),
+                deltaY = (touches[0].clientY - lastTouchY),
+                greatestDelta = (Math.abs(deltaX) > Math.abs(deltaY)) ? deltaX : deltaY,
+                direction = (greatestDelta >= 0) ? -1 : 1; // Intentionally inverted to match expected 'drag' behaviour
+            console.log("t-move", deltaX, deltaY, greatestDelta, direction);
+            
+            lastTouchX = touches[0].clientX;
+            lastTouchY = touches[0].clientY;
+            
+            e.preventDefault();
+            $( window ).scrollTop( 0 ).scrollLeft( 0 );
+            scrollSteps(direction * Math.abs(greatestDelta));
+//            scrollSteps(direction * STEP_SIZE);
+        };
+        var touchEnd = function(e) {
+            console.log("t-end");
+//            touchMove(e);
+            touchCancel(e);
+            e.preventDefault();
+        };
+        var touchCancel = function(e) {
+            console.log("t-cancel");
+            $(document).off('.sp-touchsupport');
+            e.preventDefault();
+        };
+        
+        $(document).on({
+            'touchmove.sp-touchsupport': touchMove,
+            'touchend.sp-touchsupport': touchEnd,
+            'touchcancel.sp-touchsupport': touchCancel
+        });
+        
+//        e.preventDefault();
+    }
 
 	/* Handles mousewheel scrolling */
 	function scrollHandler( e ) {
