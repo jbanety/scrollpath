@@ -56,6 +56,8 @@
       lineWidth: 10,
       lineCap: "round",
       lineJoin: "round"
+            touchAllowTinySteps: true, // If true, touch events can scroll by less than the STEP_SIZE
+            touchDistanceAmplificationFactor: 1.0
 		},
 
 		methods = {
@@ -87,7 +89,8 @@
 							e.preventDefault();
 							return false;
 						}
-					}
+					},
+                    "touchstart": touchHandler
 				});
 
 				$( window ).on( "resize", function() { scrollToStep( step ); } ); // Re-centers the screen
@@ -511,6 +514,99 @@
 
 		context.stroke();
 	}
+
+    /* Helper function to return the touch point with the specified ID from a list of changed touches */
+    function findTouchFromId(touches, id) {
+        for (var i=0; i<touches.length; ++i) {
+            if (touches[i].identifier == id) {
+                return touches[i];
+            }
+        }
+        return null;
+    }
+    
+    /* Handles touchscreen scrolling */
+    function touchHandler( e ) {
+        // @todo Implement inertia in a way that hopefully behaves intuitively
+
+        // When we get our first touch event we grab the ID of that point and store the current
+        //  window offset so we can later calculate how far the touch point has moved
+        var touches = e.originalEvent.changedTouches,
+            lastTouchX = touches[0].clientX,
+            lastTouchY = touches[0].clientY,
+            touchId = touches[0].identifier;
+        
+        // This is our touchmove event handler
+        var touchMove = function(e) {
+            // First see if "our" touch point has changed (that is, the one that triggered this
+            //  whole sequence -- we ignore later touches)
+            var touches = e.originalEvent.changedTouches,
+                touch = findTouchFromId(touches, touchId);
+            
+            if (!touch)
+                return; // "our" touch hasn't changed
+            
+            // Ensure that the browser doesn't do anything silly, like, y'know, behaving normally :)
+            e.preventDefault();
+            $( window ).scrollTop( 0 ).scrollLeft( 0 );
+            
+            // Figure out how far the touch point has moved, applying our amplification factor, if necessary
+            var deltaX = (touch.clientX - lastTouchX) * settings.touchDistanceAmplificationFactor,
+                deltaY = (touch.clientY - lastTouchY) * settings.touchDistanceAmplificationFactor,
+                greatestDelta = (Math.abs(deltaX) > Math.abs(deltaY)) ? deltaX : deltaY,
+                direction = (greatestDelta >= 0) ? -1 : 1; // Intentionally inverted to match expected 'drag' behaviour
+            
+            // We have an option to control whether we can scroll in steps smaller than STEP_SIZE.
+            //  Smaller scroll increments are smoother and more "natural" for touch devices, but
+            //  may potentially have compatibility issues (I don't know, honestly!)
+            if (settings.touchAllowTinySteps) {
+                scrollSteps(direction * Math.abs(greatestDelta));
+                
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+            } else {
+                // Only do anything if the touch point has moved at least one STEP_SIZE distance
+                if (Math.abs(greatestDelta) >= STEP_SIZE) {
+                    var stepCount = Math.floor(Math.abs(greatestDelta) / STEP_SIZE);
+                    scrollSteps(direction * stepCount * STEP_SIZE);
+                    
+                    // Now, which direction triggered this? We need to move our "from" reference
+                    //  point closer to our current touch point. This is better than simply
+                    //  resetting the vector to the current touch position because it allows for
+                    //  delta values to be carried forward to the next move event. We also only
+                    //  reset the triggering direction to allow for diagonal touch movement
+                    if (deltaX == greatestDelta) {
+                        // The X direction!
+                        lastTouchX -= (stepCount * STEP_SIZE * direction) / settings.touchDistanceAmplificationFactor;
+                    } else {
+                        // Y
+                        lastTouchY -= (stepCount * STEP_SIZE * direction) / settings.touchDistanceAmplificationFactor;
+                    }
+                }
+            }
+        };
+        var touchOff = function() {
+            $(document).off('.sp-touchsupport');
+        };
+        
+        $(document).on({
+            'touchmove.sp-touchsupport': touchMove,
+            'touchend.sp-touchsupport': function(e) {
+                var touch = findTouchFromId(e.originalEvent.changedTouches, touchId);
+                if (touch) {
+                    touchOff();
+                }
+                e.preventDefault();
+            },
+            'touchcancel.sp-touchsupport': function(e) {
+                var touch = findTouchFromId(e.originalEvent.changedTouches, touchId);
+                if (touch) {
+                    touchOff();
+                }
+                e.preventDefault();
+            }
+        });
+    }
 
 	/* Handles mousewheel scrolling */
 	function scrollHandler( e ) {
