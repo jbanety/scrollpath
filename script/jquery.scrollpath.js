@@ -69,7 +69,13 @@
 				pathList = pathObject.getPath();
 				initCanvas();
 				initScrollBar();
-				scrollToStep( 0 ); // Go to the first step immediately
+				if(location.hash == '' || location.hash == '#'){
+					scrollToStep( 0 ); // Go to the first step immediately
+				}else{
+					// Go to linked step immediately
+					var name = location.hash.replace('#-', '').replace('#', '');
+					scrollToStep(findStep(name));
+				}
 				element.css( "position", "relative" );
 
 				$( document ).on({
@@ -150,6 +156,7 @@
 			canvasPath = [{ method: "moveTo", args: [ 0, 0 ] }], // Needed if first path operation isn't a moveTo
 			path = [],
 			nameMap = {},
+			stepMap = [],
 
 			defaults = {
 				rotate: null,
@@ -204,7 +211,7 @@
 							callback: i === steps - 1 ? settings.callback : null
 					});
 			}
-			if( settings.name ) nameMap[ settings.name ] = path.length - 1;
+			if( settings.name ) nameMap[ settings.name ] = path.length - 1; stepMap[path.length-1] = settings.name;
 
 			setPos( x, y );
 
@@ -234,7 +241,7 @@
 							callback: i === steps ? settings.callback : null
 						});
 			}
-			if( settings.name ) nameMap[ settings.name ] = path.length - 1;
+			if( settings.name ) nameMap[ settings.name ] = path.length - 1; stepMap[path.length-1] = settings.name;
 
 			rotation = ( canRotate ? settings.rotate : rotation );
 			setPos( x, y );
@@ -332,7 +339,7 @@
 							callback: i === steps ? settings.callback : null
 						});
 			}
-			if( settings.name ) nameMap[ settings.name ] = path.length - 1;
+			if( settings.name ) nameMap[ settings.name ] = path.length - 1; stepMap[path.length-1] = settings.name;
 
 			rotation = ( canRotate ? settings.rotate : rotation );
 			setPos( endX, endY );
@@ -355,6 +362,10 @@
 		this.getNameMap = function() {
 			return nameMap;
 		};
+
+		this.getStepMap = function(){
+			return stepMap;
+		}
 
 		/* Appends offsets to all x and y coordinates before returning the canvas path */
 		this.getCanvasPath = function() {
@@ -592,6 +603,8 @@
 		if (pathList[ stepParam ] ){
 			cb = pathList[ stepParam ].callback;
 			element.css( makeCSS( pathList[ stepParam ] ) );
+			stepMap = pathObject.getStepMap();
+			if(stepMap[stepParam] != undefined) location.hash = '#-' + stepMap[stepParam];
 		}
 		if(scrollHandle) {
 			var stepTop = stepParam / (pathList.length - 1 ) * (scrollBar.height() - scrollHandle.height());
