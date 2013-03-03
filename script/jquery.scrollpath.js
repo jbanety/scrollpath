@@ -46,7 +46,8 @@
 			wrapAround: false,
 			drawPath: false,
 			scrollBar: true,
-            touchAllowTinySteps: true // If true, touch events can scroll by less than the STEP_SIZE
+            touchAllowTinySteps: true, // If true, touch events can scroll by less than the STEP_SIZE
+            touchDistanceAmplificationFactor: 1.0
 		},
 
 		methods = {
@@ -408,7 +409,6 @@
     function touchHandler( e ) {
         // Initially assume only one touch point at any one time
         // @todo Implement support for multiple touches (even if we just ignore the subsequent touches)
-        // @todo Add option of amplifying the touch deltas
         // @todo Implement inertia in a way that hopefully behaves intuitively
         
         var touches = e.originalEvent.changedTouches,
@@ -418,8 +418,8 @@
         
         var touchMove = function(e) {
             var touches = e.originalEvent.changedTouches,
-                deltaX = (touches[0].clientX - lastTouchX),
-                deltaY = (touches[0].clientY - lastTouchY),
+                deltaX = (touches[0].clientX - lastTouchX) * settings.touchDistanceAmplificationFactor,
+                deltaY = (touches[0].clientY - lastTouchY) * settings.touchDistanceAmplificationFactor,
                 greatestDelta = (Math.abs(deltaX) > Math.abs(deltaY)) ? deltaX : deltaY,
                 direction = (greatestDelta >= 0) ? -1 : 1; // Intentionally inverted to match expected 'drag' behaviour
             console.log("t-move", deltaX, deltaY, greatestDelta, direction);
@@ -441,10 +441,10 @@
                     // Now, which direction triggered this?
                     if (deltaX == greatestDelta) {
                         // The X direction!
-                        lastTouchX -= stepCount * STEP_SIZE * direction;
+                        lastTouchX -= (stepCount * STEP_SIZE * direction) / settings.touchDistanceAmplificationFactor;
                     } else {
                         // Y
-                        lastTouchY -= stepCount * STEP_SIZE * direction;
+                        lastTouchY -= (stepCount * STEP_SIZE * direction) / settings.touchDistanceAmplificationFactor;
                     }
                 }
             }
