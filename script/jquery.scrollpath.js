@@ -45,7 +45,8 @@
 		settings = {
 			wrapAround: false,
 			drawPath: false,
-			scrollBar: true
+			scrollBar: true,
+            touchAllowTinySteps: true // If true, touch events can scroll by less than the STEP_SIZE
 		},
 
 		methods = {
@@ -407,7 +408,6 @@
     function touchHandler( e ) {
         // Initially assume only one touch point at any one time
         // @todo Implement support for multiple touches (even if we just ignore the subsequent touches)
-        // @todo Add option for whether to allow touch events to scroll by less than the STEP_SIZE
         // @todo If STEP_SIZE is being enforced, we need to only trigger a scroll event when the touch has moved by at least STEP_SIZE pixels (i.e. don't reset the lastTouchX/Y vars until that threshold has been reached, and probably only move the lastTouchX/Y values closer to the current touch locations by multiples of STEP_SIZE to keep behaviour roughly as expected)
         // @todo Add option of amplifying the touch deltas
         // @todo Implement inertia in a way that hopefully behaves intuitively
@@ -430,8 +430,12 @@
             
             e.preventDefault();
             $( window ).scrollTop( 0 ).scrollLeft( 0 );
-            scrollSteps(direction * Math.abs(greatestDelta));
-//            scrollSteps(direction * STEP_SIZE);
+            
+            if (settings.touchAllowTinySteps) {
+                scrollSteps(direction * Math.abs(greatestDelta));
+            } else {
+                scrollSteps(direction * STEP_SIZE);
+            }
         };
         var touchEnd = function(e) {
             console.log("t-end");
