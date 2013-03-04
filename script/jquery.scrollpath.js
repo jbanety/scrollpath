@@ -80,6 +80,12 @@
                     scrollToStep(findStep(name));
                 }
                 element.css( "position", "relative" );
+                
+                // The normal "linear" easing combined with this plugin is broken. While the other
+                //  easings return a value from 0 to the final animation value, "linear" returns a
+                //  value from 0 to 1. We thus need to add our own linear easing function to use
+                //  instead
+                $.easing.linearSp = function(x, t, b, c, d){ return x * (c - b); };
 
                 $( document ).on({
                     "mousewheel": scrollHandler,
@@ -669,6 +675,11 @@
             return scrollSteps( steps );
         }
         isAnimating = true;
+        
+        if (easing === 'linear') {
+            // We need to use our own "linear" easing
+            easing = 'linearSp';
+        }
 
         var frames = ( duration / 1000 ) * FPS,
             startStep = step,
