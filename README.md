@@ -3,11 +3,17 @@ jQuery Scroll Path
 A jQuery plugin for defining a custom path that the browser
 follows when scrolling.
 
-Demo: http://joelb.me/scrollpath
-
 Author: Joel Besada (http://www.joelb.me)  
-Version: 1.1.1 (2012-02-20)   
 Copyright 2012, Joel Besada   
+
+Forked: 2013-07-23
+Version: 1.3 Curvy-Bezier
+Contributor: Thomas K., Locandy GmbH
+Contibution: SVG Paths, Bezier Curves, Performance
+
+TODO: iPad optimizaion
+
+Demo (version 1.1.1): http://joelb.me/scrollpath
 
 MIT Licensed (http://www.opensource.org/licenses/mit-license.php)
 
@@ -122,6 +128,8 @@ The last three parameters `duration, easing, complete` work the same way as the 
 
 Changelog
 ---------
+
+__Version 1.3 (2013-08-01)__: Added bezierCurve to path and SVG output functions, fixes.
 
 __Version 1.2 (2013-07-31)__: Added SVG path output via console log. Added arcFrom shortcut, added linking helpers and options, added degrees angle option.
 
