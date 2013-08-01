@@ -15,15 +15,16 @@ function init() {
 	// we must pass the plugin settings to the Path constructor AND the plugin
 	// to make useDegrees and logSvg work as Path is initialized before the plugin
 	var path = $.fn.scrollPath("getPath",{},settings);
-		    
-		// Move to 'start' element
+	// current end coordinate: path.x, path.y
+	
+	// Move to 'start' element
 	path.moveTo(400, 50, {name: "start"})
 		// Line to 'description' element
-		.lineTo(path.lineEndPointX, path.lineEndPointY+750, {name: "description"})
-		.bezierCurve(path.lineEndPointX, path.lineEndPointY, 
-		    path.lineEndPointX+200, path.lineEndPointY,
-		    path.lineEndPointX+200, path.lineEndPointY+200,
-		    path.lineEndPointX, path.lineEndPointY+800)
+		.lineTo(path.x, path.y+750, {name: "description"})
+		.bezierCurveTo( 
+		    path.x+200, path.y,
+		    path.x+200, path.y+200,
+		    path.x, path.y+800)
 		// Arc down and line to 'syntax'
 		//.arc(200, 1200, 400, -Math.PI/2, Math.PI/2, true)
 		// NEW OPTION: .lineTo(path.arcEndPointX+100,path.arcEndPointY+100, ...)

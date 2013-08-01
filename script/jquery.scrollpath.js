@@ -14,6 +14,9 @@
     Author: Joel Besada (http://www.joelb.me)
     Date: 2012-02-01
 
+    Modifications: Jaymz Campbell (http://jaymz.eu | http://u-dox.com)
+    Date: 2012-06-05
+
     Copyright 2012, Joel Besada
     MIT Licensed (http://www.opensource.org/licenses/mit-license.php)
 */
@@ -49,7 +52,17 @@
 			logSvg: false,                 // output SVG path to console to draw a PNG later (copy from console to *.svg file!) 
 			autoJoinArcWithLineTo: true,   // fill gaps automatically with inserted lineTo
 			useDegrees: false,             // arc uses angles in degrees
-			floorCoordinates:false         // turn off antialias on canvas
+			floorCoordinates:false,        // turn off antialias on canvas
+            scrollCallback: null,
+            shadowBlur: 15,
+            shadowColor: "black",
+            strokeStyle: "white",
+            lineWidth: 10,
+            lineCap: "round",
+            lineJoin: "round",
+            touchSupport: true,
+            touchAllowTinySteps: true, // If true, touch events can scroll by less than the STEP_SIZE
+            touchDistanceAmplificationFactor: 1.0
 		},
 
 		methods = {
@@ -63,8 +76,20 @@
 				pathList = pathObject.getPath();
 				initCanvas();
 				initScrollBar();
+                if(location.hash == '' || location.hash == '#'){
 				scrollToStep( 0 ); // Go to the first step immediately
+                }else{
+                    // Go to linked step immediately
+                    var name = location.hash.replace('#-', '').replace('#', '');
+                    scrollToStep(findStep(name));
+                }
 				element.css( "position", "relative" );
+
+                // The normal "linear" easing combined with this plugin is broken. While the other
+                //  easings return a value from 0 to the final animation value, "linear" returns a
+                //  value from 0 to 1. We thus need to add our own linear easing function to use
+                //  instead
+                $.easing.linearSp = function(x, t, b, c, d){ return x * (c - b); };
 
 				$( document ).on({
 					"mousewheel": scrollHandler,
@@ -75,7 +100,8 @@
 							e.preventDefault();
 							return false;
 						}
-					}
+                    },
+                    "touchstart": settings.touchSupport ? touchHandler : null
 				});
 
 				$( window ).on( "resize", function() { scrollToStep( step ); } ); // Re-centers the screen
@@ -106,6 +132,29 @@
 				}
 				animateSteps( distance, duration, easing, callback );
 				return this;
+            },
+
+            scrollToPercent: function(offset, duration, easing, callback) {
+                // Takes a percentage of the entire path length to 'scroll' to -
+                // useful for building static navs if certain path items do not
+                // 100% correspond to the position of a "frame" visually
+                var destination = Math.floor(offset*(pathList.length-1));
+                var distance = destination - step;
+                animateSteps(distance, duration, easing, callback);
+                return this;
+            },
+
+            getScrollHandler: function() {
+
+                return function(e) {
+                    // Copied from below!!
+                    var scrollDelta = e.originalEvent.wheelDelta || -e.originalEvent.detail,
+                    dir = scrollDelta / ( Math.abs( scrollDelta ) );
+                    e.preventDefault();
+                    $( window ).scrollTop( 0 ).scrollLeft( 0 );
+                    scrollSteps( -dir * STEP_SIZE );
+                };
+
 			}
 		};
 	
@@ -125,6 +174,7 @@
 			canvasPath = [{ method: "moveTo", args: [ 0, 0 ] }], // Needed if first path operation isn't a moveTo
 			path = [],
 			nameMap = {},
+            stepMap = [],
 
 			defaults = {
 				rotate: null,
@@ -132,6 +182,9 @@
 				name: null
 			};
 			
+		this.x = 0;
+		this.y = 0;
+		
 	    this.pluginSettings = pluginSettings;
 			
 		this.deg2rad = function(d) { return 2*Math.PI*(d-90)/360; };
@@ -189,9 +242,9 @@
 							callback: i === steps - 1 ? settings.callback : null
 					});
 			}
-			if( settings.name ) nameMap[ settings.name ] = path.length - 1;
+            if( settings.name ) nameMap[ settings.name ] = path.length - 1; stepMap[path.length-1] = settings.name;
 
-			setPos( x, y );
+			this.setPos( x, y );
 
 			updateCanvas( x, y );
 			canvasPath.push({ method: "moveTo", args: arguments });
@@ -226,16 +279,17 @@
 							callback: i === steps ? settings.callback : null
 						});
 			}
-			if( settings.name ) nameMap[ settings.name ] = path.length - 1;
+            if( settings.name ) nameMap[ settings.name ] = path.length - 1; stepMap[path.length-1] = settings.name;
 
 			rotation = ( canRotate ? settings.rotate : rotation );
-			setPos( x, y );
+			this.setPos( x, y );
 
 			updateCanvas( x, y );
 			canvasPath.push({ method: "lineTo", args: arguments });
 
 			return this;
 		};
+
 
 		/* Simplifies drawing an arc from a given start point, no need to calculate center first. */
 		this.arcFrom = function( startX, startY, radius, startAngle, endAngle, counterclockwise, options ) {
@@ -245,6 +299,66 @@
 		    this.arc(centerX, centerY, radius, startAngle, endAngle, counterclockwise, options);
 			return this;
 		};
+
+		/* From azirapahle repo 
+		    BUG: getCanvasPath does not transform coordinates correctly. 
+        this.bezierCurveTo = function(x1,y1,x2,y2,x3,y3,options){
+            var settings = $.extend( {}, defaults, options ),
+                relX =  xPos ,
+                relY =  yPos,
+                distance = hypotenuse( relX, relY ),
+                steps = Math.round( distance/scrollSpeed ) * STEP_SIZE,
+                xStep = relX / steps,
+                yStep =  relY / steps,
+                canRotate = settings.rotate !== null && HAS_TRANSFORM_SUPPORT,
+                rotStep = ( canRotate ? ( settings.rotate - rotation ) / steps : 0 ),
+                i = 1;
+
+            
+
+            coord = function (x,y) { if(!x) var x=0; if(!y) var y=0; return {x: x, y: y}; }
+    
+            B1 = function(t) { return (t*t*t); }
+            B2 = function(t) { return (3*t*t*(1-t)); } 
+            B3 = function(t) { return (3*t*(1-t)*(1-t)); }
+            B4 = function(t) { return ((1-t)*(1-t)*(1-t)); }
+
+            function getBezier(percent,C1,C2,C3,C4) {
+                var pos = new coord();
+                pos.x = C1.x * B1(percent) + C2.x * B2(percent) +C3.x * B3(percent) + C4.x * B4(percent);
+                pos.y = C1.y * B1(percent) + C2.y * B2(percent) + C3.y * B3(percent) + C4.y * B4(percent);
+                return pos; 
+            }
+
+            //Control Points
+            P1 = coord(relX, relY);
+            P2 = coord(x1, y1);
+            P3 = coord(x2, y2);
+            P4 = coord(x3, y3);
+
+            for ( ; i <= steps; i++ ) {
+                
+                var curpos = getBezier(i / steps ,P4,P3,P2,P1)
+                
+                path.push({ x: Math.round(curpos.x),
+                            y: Math.round(curpos.y),
+                            rotate: rotation + rotStep * i,
+                            callback: i === steps ? settings.callback : null
+                        });
+            }
+            if( settings.name ){
+                nameMap[ settings.name ] = path.length - 1;
+            } 
+
+            
+            rotation = ( canRotate ? settings.rotate : rotation );
+            this.setPos( x3, y3 );
+            updateCanvas( x3, y3 );
+
+            canvasPath.push({ method: "bezierCurveTo", args: arguments });
+
+			return this;
+		};*/
 		
 		/* Draws an arced path with a given circle center, radius, start and end angle. */
 		this.arc = function( centerX, centerY, radius, startAngle, endAngle, counterclockwise, options ) {
@@ -296,10 +410,10 @@
 							callback: i === steps ? settings.callback : null
 						});
 			}
-			if( settings.name ) nameMap[ settings.name ] = path.length - 1;
+            if( settings.name ) nameMap[ settings.name ] = path.length - 1; stepMap[path.length-1] = settings.name;
 
 			rotation = ( canRotate ? settings.rotate : rotation );
-			setPos( endX, endY );
+			this.setPos( endX, endY );
 
 			updateCanvas( centerX + radius, centerY + radius );
 			updateCanvas( centerX - radius, centerY - radius );
@@ -326,6 +440,16 @@
         
         this.bezierCurve = function(ax, ay, bx, by, cx, cy, dx, dy, options)
         {
+            this.moveTo(ax, ay);
+            this.bezierCurveTo(bx, by, cx, cy, dx, dy, options);
+            return this;
+        };
+        
+        this.bezierCurveTo = function(bx, by, cx, cy, dx, dy, options)
+        {
+            ax = xPos;
+            ay = yPos;
+            
 		    var settings = $.extend( {}, defaults, options ); // overloads plugin's settings variable!
 		    
 		    var relX = dx - ax,
@@ -358,7 +482,7 @@
 			if( settings.name ) nameMap[ settings.name ] = path.length - 1;
 
 			rotation = ( canRotate ? settings.rotate : rotation );
-			setPos( dx, dy );
+			this.setPos( dx, dy );
 			
             var a = [bx, by, cx, cy, dx, dy];
 			canvasPath.push({ method: "bezierCurveTo", args:a, isBezier:true }); // horrible!
@@ -366,6 +490,10 @@
 			return this;
         };
         
+        this.setSpeed = function(speed) {
+            this.scrollSpeed = speed;
+        };
+
 		this.getPath = function() {
 			return path;
 		};
@@ -373,6 +501,10 @@
 		this.getNameMap = function() {
 			return nameMap;
 		};
+
+        this.getStepMap = function(){
+            return stepMap;
+        };
 
 		/* Appends offsets to all x and y coordinates before returning the canvas path */
 		this.getCanvasPath = function() {
@@ -416,10 +548,12 @@
 		};
 
 		/* Sets the current position */
-		function setPos( x, y ) {
-			xPos = x;
-			yPos = y;
-		}
+		this.setPos = function( x, y ) {
+			xPos = x; // private
+			yPos = y; // private
+			this.x = x; // public readonly
+			this.y = y; // public readonly
+		};
 
 		/* Updates width and height, if needed */
 		function updateCanvas( x, y ) {
@@ -456,6 +590,7 @@
 							if ( Math.abs(clickStep - step) > BIG_STEP_SIZE) {
 								clickStep = step + ( 5 * STEP_SIZE * ( clickStep > step ? 1 : -1 ) );
 							}
+
 							scrollToStep(clickStep);
 
 							e.preventDefault();
@@ -509,18 +644,22 @@
 		canvas[ 0 ].width = pathObject.getPathWidth();
 		canvas[ 0 ].height = pathObject.getPathHeight();
 		
-		drawCanvasPath( canvas[ 0 ].getContext( "2d" ), pathObject.getCanvasPath() );
+    context = canvas[ 0 ].getContext( "2d" );
+    
+    
+        context.shadowBlur = settings.shadowBlur;
+        context.shadowColor = settings.shadowColor;
+        context.strokeStyle = settings.strokeStyle;
+        context.lineJoin = settings.lineJoin;
+        context.lineCap = settings.lineCap;
+        context.lineWidth = settings.lineWidth;
+        
+        drawCanvasPath( context, pathObject.getCanvasPath());
 	}
 
 	/* Sets the canvas path styles and draws the path */
 	function drawCanvasPath( context, path ) {
 		var i = 0;
-		context.shadowBlur = 15;
-		context.shadowColor = "black";
-		context.strokeStyle = "white";
-		context.lineJoin = "round";
-		context.lineCap = "round";
-		context.lineWidth = 10;
 
 		for( ; i < path.length; i++ ) {
 			context[ path[ i ].method ].apply( context, path[ i ].args );
@@ -544,7 +683,6 @@
 	svgPrefix += '<path d="';
 	
 	var svgPostfix = '" /></g></svg>';
-	
 	
 	function logSvgPath(path)
 	{
@@ -574,6 +712,97 @@
 	    }
 	}
 	
+    /* Helper function to return the touch point with the specified ID from a list of changed touches */
+    function findTouchFromId(touches, id) {
+        for (var i=0; i<touches.length; ++i) {
+            if (touches[i].identifier == id) {
+                return touches[i];
+            }
+        }
+        return null;
+    }
+    
+    /* Handles touchscreen scrolling */
+    function touchHandler( e ) {
+        // @todo Implement inertia in a way that hopefully behaves intuitively
+
+        // When we get our first touch event we grab the ID of that point and store the current
+        //  window offset so we can later calculate how far the touch point has moved
+        var touches = e.originalEvent.changedTouches,
+            lastTouchX = touches[0].clientX,
+            lastTouchY = touches[0].clientY,
+            touchId = touches[0].identifier;
+        
+        // This is our touchmove event handler
+        var touchMove = function(e) {
+            // First see if "our" touch point has changed (that is, the one that triggered this
+            //  whole sequence -- we ignore later touches)
+            var touches = e.originalEvent.changedTouches,
+                touch = findTouchFromId(touches, touchId);
+            
+            if (!touch)
+                return; // "our" touch hasn't changed
+            
+            // Ensure that the browser doesn't do anything silly, like, y'know, behaving normally :)
+            e.preventDefault();
+            $( window ).scrollTop( 0 ).scrollLeft( 0 );
+            
+            // Figure out how far the touch point has moved, applying our amplification factor, if necessary
+            var deltaX = (touch.clientX - lastTouchX) * settings.touchDistanceAmplificationFactor,
+                deltaY = (touch.clientY - lastTouchY) * settings.touchDistanceAmplificationFactor,
+                greatestDelta = (Math.abs(deltaX) > Math.abs(deltaY)) ? deltaX : deltaY,
+                direction = (greatestDelta >= 0) ? -1 : 1; // Intentionally inverted to match expected 'drag' behaviour
+            
+            // We have an option to control whether we can scroll in steps smaller than STEP_SIZE.
+            //  Smaller scroll increments are smoother and more "natural" for touch devices, but
+            //  may potentially have compatibility issues (I don't know, honestly!)
+            if (settings.touchAllowTinySteps) {
+                scrollSteps(direction * Math.abs(greatestDelta));
+                
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+            } else {
+                // Only do anything if the touch point has moved at least one STEP_SIZE distance
+                if (Math.abs(greatestDelta) >= STEP_SIZE) {
+                    var stepCount = Math.floor(Math.abs(greatestDelta) / STEP_SIZE);
+                    scrollSteps(direction * stepCount * STEP_SIZE);
+                    
+                    // Now, which direction triggered this? We need to move our "from" reference
+                    //  point closer to our current touch point. This is better than simply
+                    //  resetting the vector to the current touch position because it allows for
+                    //  delta values to be carried forward to the next move event. We also only
+                    //  reset the triggering direction to allow for diagonal touch movement
+                    if (deltaX == greatestDelta) {
+                        // The X direction!
+                        lastTouchX -= (stepCount * STEP_SIZE * direction) / settings.touchDistanceAmplificationFactor;
+                    } else {
+                        // Y
+                        lastTouchY -= (stepCount * STEP_SIZE * direction) / settings.touchDistanceAmplificationFactor;
+                    }
+                }
+            }
+        };
+        var touchOff = function() {
+            $(document).off('.sp-touchsupport');
+        };
+        
+        $(document).on({
+            'touchmove.sp-touchsupport': touchMove,
+            'touchend.sp-touchsupport': function(e) {
+                var touch = findTouchFromId(e.originalEvent.changedTouches, touchId);
+                if (touch) {
+                    touchOff();
+                }
+            },
+            'touchcancel.sp-touchsupport': function(e) {
+                var touch = findTouchFromId(e.originalEvent.changedTouches, touchId);
+                if (touch) {
+                    touchOff();
+                }
+            }
+        });
+	}
+	
 	/* Handles mousewheel scrolling */
 	function scrollHandler( e ) {
 		var scrollDelta = e.originalEvent.wheelDelta || -e.originalEvent.detail,
@@ -586,8 +815,8 @@
 
 	/* Handles key scrolling (arrows and space) */
 	function keyHandler( e ) {
-		// Disable scrolling with keys when user has focus on text input elements
-		if ( /^text/.test( e.target.type ) ) return;
+        // Disable scrolling with keys when user has focus on form field elements
+        if ( /^(input|select|textarea)$/i.test( e.target.tagName ) ) return;
 		switch ( e.keyCode ) {
 			case 40: // Down Arrow
 				scrollSteps( STEP_SIZE );
@@ -637,6 +866,11 @@
 		}
 		isAnimating = true;
 
+        if (easing === 'linear') {
+            // We need to use our own "linear" easing
+            easing = 'linearSp';
+        }
+
 		var frames = ( duration / 1000 ) * FPS,
 			startStep = step,
 			currentFrame = 0,
@@ -665,8 +899,24 @@
 		if (pathList[ stepParam ] ){
 			cb = pathList[ stepParam ].callback;
 			element.css( makeCSS( pathList[ stepParam ] ) );
+            stepMap = pathObject.getStepMap();
+            if(stepMap[stepParam] != undefined) location.hash = '#-' + stepMap[stepParam];
+        }
+        if(scrollHandle) {
+            var stepTop = stepParam / (pathList.length - 1 ) * (scrollBar.height() - scrollHandle.height());
+            scrollHandle.css("top", stepTop + "px");
+
+            // If we have been provided a callback for current path position
+            // fire it our current position (normalized to path length from 0 to 1)
+            if(settings.scrollCallback) {
+                try {
+                    settings.scrollCallback(stepParam/(pathList.length-1));
+                } catch(e) {
+                    $.error("Your callback is causing an error", e);
+                }
+            }
+
 		}
-		if( scrollHandle ) scrollHandle.css( "top", stepParam / (pathList.length - 1 ) * ( scrollBar.height() - scrollHandle.height() ) + "px" );
 		if ( cb && stepParam !== step && !isAnimating ) cb();
 		step = stepParam;
 	}
