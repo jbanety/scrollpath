@@ -1,17 +1,15 @@
-jQuery Scroll Path
-==================
+jQuery Scroll Path Fork 1.3 Curvy-Bezier
+========================================
 A jQuery plugin for defining a custom path that the browser
 follows when scrolling.
 
 Author: Joel Besada (http://www.joelb.me)  
 Copyright 2012, Joel Besada   
-
-Forked: 2013-07-23
-Version: 1.3 Curvy-Bezier
-Contributor: Thomas K., Locandy GmbH
-Contibution: SVG Paths, Bezier Curves, Performance
-
-TODO: iPad optimizaion
+Forked: 2013-07-23   
+Version: 1.3 Curvy-Bezier   
+Contributor: Thomas K., Locandy GmbH   
+Contibution: SVG Paths, Bezier Curves, Performance   
+TODO: iPad optimizaion   
 
 Demo (version 1.1.1): http://joelb.me/scrollpath
 
