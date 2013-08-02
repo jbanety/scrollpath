@@ -1,5 +1,5 @@
-jQuery Scroll Path Fork 1.3 Curvy-Bezier
-========================================
+jQuery Scroll Path Fork 1.4 Touchy-Pad
+======================================
 A jQuery plugin for defining a custom path that the browser
 follows when scrolling.
 
@@ -23,10 +23,6 @@ Scrolling can be done with the mousewheel, up/down arrow keys and spacebar. The 
 
 The plugin also allows rotating the entire page, using CSS transforms. This can be done either along a path, or around the current position. In browsers without CSS transform support, all rotations are ignored, but paths are still followed. This means the plugin works with graceful degradation in all browsers.
 
-As of version 1.1, the plugin also allows you to animate the scroll position to a given waypoint in the path.
-
-__Are you using jQuery Scroll Path on any of your sites?__ I'd love to hear about it, and I might include links here for showcasing the plugin being used in the wild.
-
 
 Using the Plugin
 ---------------
@@ -46,6 +42,11 @@ This guide aims to help you with getting started using the plugin. In addition t
 To include the plugin on your page, grab the _jquery.scrollpath.js_ file from the _script/_ folder of this repo. If you want to include the scrollbar, make sure to include the _scrollpath.css_ stylesheet from _style/_ as well. 
 
 __Note: This plugin requires jQuery 1.7+__
+
+### Touch devices (iPad, Android)
+To enable touch device support add the following meta-tag to your index.html file ...
+
+   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0"/>
 
 ### Drawing the Path
 To start drawing your path, we need to get the `Path` object from the plugin. This is done by calling `$.fn.scrollPath("getPath");`, which returns the object. For anyone who has used canvas before, you can think of the `Path` object the same way as the canvas context object. 
@@ -75,6 +76,12 @@ Calulates parameters for arc() so that the arc starts at x,y
 Draws an arc with its center at coordinate (centerX, centerY) with the given radius. The start and end angles are in radians, and the counterclockwise boolean decides which direction the path is drawn between the angles. If the starting point of the arc isn't the same as the end point of the preceding path, a straight line is automatically drawn between the points.
 
 I recommend reading [this tutorial about arcs](http://www.html5canvastutorials.com/tutorials/html5-canvas-arcs/) for a more in-depth explanation of how the different parameters work.
+
+#### bezierCurve(startX, startY, control1X, control1Y, control2X, control2Y, endX, endY [,options])
+MoveTo followed by bezierCurveTo.
+
+#### bezierCurveTo( control1X, control1Y, control2X, control2Y, endX, endY [,options] )
+Draws a bezier curve from the current point (path.x, path.y) to endX, endY using parameters as documented by canvas and SVG function.
 
 #### rotate( radians [,options])
 Rotates the screen around the current position to the given radian angle. These rotations aren't added to the path if the browser doesn't support CSS transforms.
@@ -147,7 +154,9 @@ The last three parameters `duration, easing, complete` work the same way as the 
 Changelog
 ---------
 
-__Version 1.3 (2013-08-01)__: Added bezierCurve to path and SVG output functions, fixes.
+__Version 1.4 Touchy-Pad (2013-08-02)__: Merged aziraphale scrollpath to integrate touch-device compatibility.
+
+__Version 1.3 Curvy-Bezier (2013-08-01)__: Added bezierCurve to path and SVG output functions, fixes.
 
 __Version 1.2 (2013-07-31)__: Added SVG path output via console log. Added arcFrom shortcut, added linking helpers and options, added degrees angle option.
 
