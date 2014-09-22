@@ -99,7 +99,7 @@
                 $(document).on({
                     "mousewheel": scrollHandler, "DOMMouseScroll": ("onmousewheel" in document) ? null : scrollHandler, // Firefox
                     "keydown": keyHandler, "mousedown": function(e) {
-                        if (e.button === 1) {
+                        if (e.which === 1) {
                             e.preventDefault();
                             return false;
                         }
@@ -829,7 +829,7 @@
         if (/^(input|select|textarea)$/i.test(e.target.tagName)) {
             return;
         }
-        switch (e.keyCode) {
+        switch (e.which) {
             case 40: // Down Arrow
                 scrollSteps(STEP_SIZE);
                 break;
