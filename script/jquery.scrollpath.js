@@ -50,7 +50,7 @@
             wrapAround: false, // also SVG "Z" closepath
             drawPath: false,
             scrollBar: true,
-            logSvg: false,                 // output SVG path to console to draw a PNG later (copy from console to *.svg file!) 
+            debug: false,
             autoJoinArcWithLineTo: true,   // fill gaps automatically with inserted lineTo
             useDegrees: false,             // arc uses angles in degrees
             floorCoordinates: false,        // turn off antialias on canvas
@@ -231,7 +231,7 @@
             this.lineEndPointX = x;
             this.lineEndPointY = y;
 
-            if (this.pluginSettings.logSvg) {
+            if (this.pluginSettings.debug) {
                 console.log("lineEndPointX (moveto) = ", x, ",", y);
             }
 
@@ -273,7 +273,7 @@
             this.lineEndPointX = x;
             this.lineEndPointY = y;
 
-            if (this.pluginSettings.logSvg) {
+            if (this.pluginSettings.debug) {
                 console.log("lineEndPointX = ", x, ",", y);
             }
 
@@ -398,7 +398,7 @@
             this.arcEndPointX = endX;
             this.arcEndPointY = endY;
 
-            if (this.pluginSettings.logSvg) {
+            if (this.pluginSettings.debug) {
                 console.log("arcEndPoint = ", endX, ",", endY);
             }
 
@@ -904,14 +904,28 @@
 
     /* Scrolls to a specified step */
     function scrollToStep(stepParam, fromAnimation) {
+
+        if (settings.debug) {
+            console.log('scrollToStep(stepParam = ', stepParam, ', fromAnimation = ', fromAnimation, ')');
+        }
+
         if (isAnimating && !fromAnimation) {
             return;
         }
+
         var cb;
+
+        if (settings.debug) {
+            console.log('scrollToStep() pathList[stepParam] = ', pathList[stepParam]);
+        }
+
         if (pathList[stepParam]) {
             cb = pathList[stepParam].callback;
             element.css(makeCSS(pathList[stepParam]));
             stepMap = pathObject.getStepMap();
+            if (settings.debug) {
+                console.log(stepMap[stepParam]);
+            }
             if (stepMap[stepParam] != undefined) {
                 location.hash = '#-' + stepMap[stepParam];
             }
@@ -972,6 +986,9 @@
 
         // Only use transforms when page is rotated
         if (normalizeAngle(node.rotate) === 0) {
+        if (settings.debug) {
+            console.log('makeCSS(node)', node);
+        }
             style.left = -centeredX;
             style.top = -centeredY;
             applyPrefix(style, "transform-origin", "");
