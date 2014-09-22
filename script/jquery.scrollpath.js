@@ -119,7 +119,7 @@
                     pluginSettings = settings;
                 }
 
-                return pathObject || ( pathObject = new Path(speeds.scrollSpeed, speeds.rotationSpeed, pluginSettings));
+                return pathObject || ( pathObject = new Path(speeds.scrollSpeed, speeds.rotationSpeed, speeds.scalingSpeed, pluginSettings));
             },
 
             scrollTo: function(name, duration, easing, callback) {
@@ -166,18 +166,25 @@
 
     /* The Path object serves as a context to "draw" the scroll path
      on before initializing the plugin */
-    function Path(scrollS, rotateS, pluginSettings) {
-        var PADDING = 40, scrollSpeed = scrollS, rotationSpeed = rotateS, xPos = 0, yPos = 0, rotation = 0, width = 0, height = 0, offsetX = 0, offsetY = 0, canvasPath = [{method: "moveTo",
-                                                                                                                                                                               args: [
-                                                                                                                                                                                   0,
-                                                                                                                                                                                   0
-                                                                                                                                                                               ]
-                                                                                                                                                                           }
-            ], // Needed if first path operation isn't a moveTo
+    function Path(scrollS, rotateS, scaleS, pluginSettings) {
+        var PADDING = 40,
+            scrollSpeed = scrollS,
+            rotationSpeed = rotateS,
+            scalingSpeed = scaleS,
+            xPos = 0,
+            yPos = 0,
+            rotation = 0,
+            scaling = 1,
+            width = 0,
+            height = 0,
+            offsetX = 0,
+            offsetY = 0, canvasPath = [{method: "moveTo"}], // Needed if first path operation isn't a moveTo
             path = [], nameMap = {}, stepMap = [],
-
             defaults = {
-                rotate: null, callback: null, name: null
+                scale: null,
+                rotate: null,
+                callback: null,
+                name: null
             };
 
         this.x = 0;
@@ -187,6 +194,54 @@
 
         this.deg2rad = function(d) {
             return 2 * Math.PI * (d - 90) / 360;
+        };
+
+        /* Scale */
+        this.scale = function(scale, options) {
+
+            var settings = $.extend({}, defaults, options),
+                scaleDistance = Math.abs(scale - scaling),
+                steps = Math.round(scaleDistance / scalingSpeed) * STEP_SIZE,
+                scaleStep = ( scale - scaling ) / steps,
+                i = 1;
+
+            if (this.pluginSettings.debug) {
+                console.log('scale() ', scaling, scale, scaleDistance, scalingSpeed, steps, scaleStep, i);
+            }
+
+            if (scaleDistance != 0) {
+
+                if (!HAS_TRANSFORM_SUPPORT) {
+                    if (settings.name || settings.callback) {
+                        // In case there was a name or callback set to this path, we add an extra step with those
+                        // so they don't get lost in browsers without rotation support
+                        this.moveTo(xPos, yPos, {
+                            callback: settings.callback,
+                            name: settings.name
+                        });
+                    }
+                    return this;
+                }
+
+                for (; i <= steps; i++) {
+                    path.push({
+                        x: xPos,
+                        y: yPos,
+                        scale: scaling + scaleStep * i,
+                        rotate: settings.rotate !== null ? settings.rotate : rotation,
+                        callback: i === steps ? settings.callback : null
+                    });
+                }
+
+                if (settings.name) {
+                    nameMap[settings.name] = path.length - 1;
+                }
+
+                scaling = scale;
+
+            }
+
+            return this;
         };
 
         /* Rotates the screen while staying in place */
@@ -210,9 +265,13 @@
 
             for (; i <= steps; i++) {
                 path.push({
-                    x: xPos, y: yPos, rotate: rotation + rotStep * i, callback: i === steps ? settings.callback : null
+                    x: xPos, y: yPos,
+                    scale: settings.scale !== null ? settings.scale : scaling,
+                    rotate: rotation + rotStep * i,
+                    callback: i === steps ? settings.callback : null
                 });
             }
+
             if (settings.name) {
                 nameMap[settings.name] = path.length - 1;
             }
@@ -239,6 +298,7 @@
                 path.push({
                     x: x,
                     y: y,
+                    scale: settings.scale !== null ? settings.scale : scaling,
                     rotate: settings.rotate !== null ? settings.rotate : rotation,
                     callback: i === steps - 1 ? settings.callback : null
                 });
@@ -281,6 +341,7 @@
                 path.push({
                     x: xPos + xStep * i,
                     y: yPos + yStep * i,
+                    scale: settings.scale !== null ? settings.scale : scaling,
                     rotate: rotation + rotStep * i,
                     callback: i === steps ? settings.callback : null
                 });
@@ -415,6 +476,7 @@
                 path.push({
                     x: centerX + radius * Math.cos(startAngle + radStep * i),
                     y: centerY + radius * Math.sin(startAngle + radStep * i),
+                    scale: settings.scale !== null ? settings.scale : scaling,
                     rotate: rotation + rotStep * i,
                     callback: i === steps ? settings.callback : null
                 });
@@ -482,6 +544,7 @@
                 path.push({
                     x: p[0],
                     y: p[1],
+                    scale: settings.scale !== null ? settings.scale : scaling,
                     rotate: rotation + rotStep * i,
                     callback: i + 1 === steps ? settings.callback : null
                 });
@@ -994,11 +1057,12 @@
     function makeCSS(node) {
         var centeredX = node.x - $(window).width() / 2, centeredY = node.y - $(window).height() / 2, style = {};
 
-        // Only use transforms when page is rotated
-        if (normalizeAngle(node.rotate) === 0) {
         if (settings.debug) {
             console.log('makeCSS(node)', node);
         }
+
+        // Only use transforms when page is rotated or scaled
+        if (normalizeAngle(node.rotate) === 0 && node.scale == 1) {
             style.left = -centeredX;
             style.top = -centeredY;
             applyPrefix(style, "transform-origin", "");
@@ -1006,7 +1070,14 @@
         } else {
             style.left = style.top = "";
             applyPrefix(style, "transform-origin", node.x + "px " + node.y + "px");
-            applyPrefix(style, "transform", "translate(" + -centeredX + "px, " + -centeredY + "px) rotate(" + node.rotate + "rad)");
+            var transform = "translate(" + -centeredX + "px, " + -centeredY + "px)";
+            if (normalizeAngle(node.rotate) > 0) {
+                transform += " rotate(" + node.rotate + "rad)";
+            }
+            if (node.scale != 1) {
+                transform += " scale(" + node.scale + ")";
+            }
+            applyPrefix(style, "transform", transform);
         }
 
         return style;
