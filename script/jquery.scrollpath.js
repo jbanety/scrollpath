@@ -236,6 +236,7 @@
                 if (settings.name) {
                     nameMap[settings.name] = path.length - 1;
                 }
+                stepMap[path.length - 1] = settings.name;
 
                 scaling = scale;
 
@@ -936,9 +937,6 @@
             cb = pathList[stepParam].callback;
             element.css(makeCSS(pathList[stepParam]));
             stepMap = pathObject.getStepMap();
-            if (settings.debug) {
-                console.log(stepMap[stepParam]);
-            }
             if (stepMap[stepParam] != undefined) {
                 location.hash = '#-' + stepMap[stepParam];
             }
