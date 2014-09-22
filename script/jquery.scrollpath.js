@@ -831,9 +831,11 @@
         }
         switch (e.which) {
             case 40: // Down Arrow
+            case 39: // Right Arrow
                 scrollSteps(STEP_SIZE);
                 break;
             case 38: // Up Arrow
+            case 37: // Left Arrow
                 scrollSteps(-STEP_SIZE);
                 break;
             case 34: //Page Down
