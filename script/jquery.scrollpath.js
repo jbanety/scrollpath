@@ -827,30 +827,38 @@
     function keyHandler(e) {
         // Disable scrolling with keys when user has focus on form field elements
         if (/^(input|select|textarea)$/i.test(e.target.tagName)) {
-            return;
+            e.preventDefault();
+            return false;
         }
         switch (e.which) {
             case 40: // Down Arrow
             case 39: // Right Arrow
+                e.preventDefault();
                 scrollSteps(STEP_SIZE);
                 break;
             case 38: // Up Arrow
             case 37: // Left Arrow
+                e.preventDefault();
                 scrollSteps(-STEP_SIZE);
                 break;
             case 34: //Page Down
+                e.preventDefault();
                 scrollSteps(BIG_STEP_SIZE);
                 break;
             case 33: //Page Up
+                e.preventDefault();
                 scrollSteps(-BIG_STEP_SIZE);
                 break;
             case 32: // Spacebar
+                e.preventDefault();
                 scrollSteps(BIG_STEP_SIZE * ( e.shiftKey ? -1 : 1 ));
                 break;
             case 35: // End
+                e.preventDefault();
                 scrollToStep(pathList.length - 1);
                 break;
             case 36: //Home
+                e.preventDefault();
                 scrollToStep(0);
                 break;
         }
