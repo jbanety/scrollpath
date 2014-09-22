@@ -21,14 +21,28 @@
  MIT Licensed (http://www.opensource.org/licenses/mit-license.php)
  */
 (function($, window, document, undefined) {
-    var PREFIX = "-" + getVendorPrefix().toLowerCase() + "-", HAS_TRANSFORM_SUPPORT = supportsTransforms(), HAS_CANVAS_SUPPORT = supportsCanvas(), FPS = 60, STEP_SIZE = 50,    // Number of actual path steps per scroll steps.
+    var PREFIX = "-" + getVendorPrefix().toLowerCase() + "-",
+        HAS_TRANSFORM_SUPPORT = supportsTransforms(),
+        HAS_CANVAS_SUPPORT = supportsCanvas(),
+        FPS = 60,
+        STEP_SIZE = 50,    // Number of actual path steps per scroll steps.
     // The extra steps are needed to make animations look smooth.
         BIG_STEP_SIZE = STEP_SIZE * 5, // Step size for space, page down/up
-        isInitialized = false, isDragging = false, isAnimating = false, step, pathObject, pathList, element, scrollBar, scrollHandle,
+        isInitialized = false,
+        isDragging = false,
+        isAnimating = false,
+        step,
+        pathObject,
+        pathList,
+        element,
+        scrollBar,
+        scrollHandle,
 
     // Default speeds for scrolling and rotating (with path.rotate())
         speeds = {
-            scrollSpeed: 50, rotationSpeed: Math.PI / 15
+            scrollSpeed: 50,
+            rotationSpeed: Math.PI / 15,
+            scalingSpeed: 0.25
         },
 
     // Default plugin settings
@@ -177,7 +191,11 @@
 
         /* Rotates the screen while staying in place */
         this.rotate = function(radians, options) {
-            var settings = $.extend({}, defaults, options), rotDistance = Math.abs(radians - rotation), steps = Math.round(rotDistance / rotationSpeed) * STEP_SIZE, rotStep = ( radians - rotation ) / steps, i = 1;
+            var settings = $.extend({}, defaults, options),
+                rotDistance = Math.abs(radians - rotation),
+                steps = Math.round(rotDistance / rotationSpeed) * STEP_SIZE,
+                rotStep = ( radians - rotation ) / steps,
+                i = 1;
 
             if (!HAS_TRANSFORM_SUPPORT) {
                 if (settings.name || settings.callback) {
@@ -206,8 +224,9 @@
 
         /* Moves (jumps) directly to the given point */
         this.moveTo = function(x, y, options) {
-            var settings = $.extend({}, defaults, options), steps = path.length ? STEP_SIZE : 1;
-            i = 0;
+            var settings = $.extend({}, defaults, options),
+                steps = path.length ? STEP_SIZE : 1,
+                i = 0;
 
             this.lineEndPointX = x;
             this.lineEndPointY = y;
@@ -239,7 +258,16 @@
 
         /* Draws a straight path to the given point */
         this.lineTo = function(x, y, options) {
-            var settings = $.extend({}, defaults, options), relX = x - xPos, relY = y - yPos, distance = hypotenuse(relX, relY), steps = Math.round(distance / scrollSpeed) * STEP_SIZE, xStep = relX / steps, yStep = relY / steps, canRotate = settings.rotate !== null && HAS_TRANSFORM_SUPPORT, rotStep = ( canRotate ? ( settings.rotate - rotation ) / steps : 0 ), i = 1;
+            var settings = $.extend({}, defaults, options),
+                relX = x - xPos,
+                relY = y - yPos,
+                distance = hypotenuse(relX, relY),
+                steps = Math.round(distance / scrollSpeed) * STEP_SIZE,
+                xStep = relX / steps,
+                yStep = relY / steps,
+                canRotate = settings.rotate !== null && HAS_TRANSFORM_SUPPORT,
+                rotStep = ( canRotate ? ( settings.rotate - rotation ) / steps : 0 ),
+                i = 1;
 
             // save endpoints for easier relative calculation
             this.lineEndPointX = x;
@@ -354,7 +382,17 @@
                 }
             }
 
-            var startX = centerX + Math.cos(startAngle) * radius, startY = centerY + Math.sin(startAngle) * radius, endX = centerX + Math.cos(endAngle) * radius, endY = centerY + Math.sin(endAngle) * radius, angleDistance = sectorAngle(startAngle, endAngle, counterclockwise), distance = radius * angleDistance, steps = Math.round(distance / scrollSpeed) * STEP_SIZE, radStep = angleDistance / steps * ( counterclockwise ? -1 : 1 ), canRotate = settings.rotate !== null && HAS_TRANSFORM_SUPPORT, rotStep = ( canRotate ? (settings.rotate - rotation) / steps : 0 ), i = 1;
+            var startX = centerX + Math.cos(startAngle) * radius,
+                startY = centerY + Math.sin(startAngle) * radius,
+                endX = centerX + Math.cos(endAngle) * radius,
+                endY = centerY + Math.sin(endAngle) * radius,
+                angleDistance = sectorAngle(startAngle, endAngle, counterclockwise),
+                distance = radius * angleDistance,
+                steps = Math.round(distance / scrollSpeed) * STEP_SIZE,
+                radStep = angleDistance / steps * ( counterclockwise ? -1 : 1 ),
+                canRotate = settings.rotate !== null && HAS_TRANSFORM_SUPPORT,
+                rotStep = ( canRotate ? (settings.rotate - rotation) / steps : 0 ),
+                i = 1;
 
             // save endpoints for easier relative calculation
             this.arcEndPointX = endX;
@@ -422,7 +460,10 @@
 
             var settings = $.extend({}, defaults, options); // overloads plugin's settings variable!
 
-            var relX = dx - ax, relY = dy - ay, canRotate = settings.rotate !== null && HAS_TRANSFORM_SUPPORT, distance = hypotenuse(relX, relY) * 1.3; // bad approximation @TODO fixit, but how?
+            var relX = dx - ax,
+                relY = dy - ay,
+                canRotate = settings.rotate !== null && HAS_TRANSFORM_SUPPORT,
+                distance = hypotenuse(relX, relY) * 1.3; // bad approximation @TODO fixit, but how?
 
             var steps = Math.round(distance / scrollSpeed) * STEP_SIZE;
             var rotStep = ( canRotate ? (settings.rotate - rotation) / steps : 0 );
