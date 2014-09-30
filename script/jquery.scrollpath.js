@@ -63,7 +63,10 @@
             lineJoin: "round",
             touchSupport: true,
             touchAllowTinySteps: true, // If true, touch events can scroll by less than the STEP_SIZE
-            touchDistanceAmplificationFactor: 1.0
+            touchDistanceAmplificationFactor: 1.0,
+            customScrollHandler: null,
+            customKeyHandler: null,
+            customTouchHandler: null
         },
 
         methods = {
@@ -97,13 +100,16 @@
                 };
 
                 $(document).on({
-                    "mousewheel": scrollHandler, "DOMMouseScroll": ("onmousewheel" in document) ? null : scrollHandler, // Firefox
-                    "keydown": keyHandler, "mousedown": function(e) {
+                    "mousewheel": settings.customScrollHandler !== null ? settings.customScrollHandler : scrollHandler,
+                    "DOMMouseScroll": ("onmousewheel" in document) ? null : (settings.customScrollHandler !== null ? settings.customScrollHandler : scrollHandler), // Firefox
+                    "keydown": settings.customKeyHandler !== null ? settings.customKeyHandler : keyHandler,
+                    "mousedown": function(e) {
                         if (e.which === 1) {
                             e.preventDefault();
                             return false;
                         }
-                    }, "touchstart": settings.touchSupport ? touchHandler : null
+                    },
+                    "touchstart": settings.touchSupport ? (settings.customTouchHandler !== null ? settings.customTouchHandler : touchHandler) : null
                 });
 
                 $(window).on("resize", function() {
@@ -178,8 +184,11 @@
             width = 0,
             height = 0,
             offsetX = 0,
-            offsetY = 0, canvasPath = [{method: "moveTo"}], // Needed if first path operation isn't a moveTo
-            path = [], nameMap = {}, stepMap = [],
+            offsetY = 0,
+            canvasPath = [{method: "moveTo", args: []}], // Needed if first path operation isn't a moveTo
+            path = [],
+            nameMap = {},
+            stepMap = [],
             defaults = {
                 scale: null,
                 rotate: null,
@@ -526,6 +535,8 @@
             var floor = settings.floorCoordinates ? Math.floor : function(x) {
                 return x;
             };
+
+            console.log(canvasPath);
 
             for (; i < canvasPath.length; i++) {
                 canvasPath[i].args[0] = floor(canvasPath[i].args[0] - this.getPathOffsetX());
@@ -936,6 +947,10 @@
         if (pathList[stepParam]) {
             cb = pathList[stepParam].callback;
             element.css(makeCSS(pathList[stepParam]));
+
+            // Force Webkit to redraw
+            //$('body').hide().show(0);
+
             stepMap = pathObject.getStepMap();
             if (stepMap[stepParam] != undefined) {
                 location.hash = '#-' + stepMap[stepParam];
@@ -993,7 +1008,9 @@
 
     /* Translates a given node in the path to CSS styles */
     function makeCSS(node) {
-        var centeredX = node.x - $(window).width() / 2, centeredY = node.y - $(window).height() / 2, style = {};
+        var centeredX = node.x - $(window).width() / 2,
+            centeredY = node.y - $(window).height() / 2,
+            style = {};
 
         if (settings.debug) {
             console.log('makeCSS(node)', node);
@@ -1015,6 +1032,7 @@
             if (node.scale != 1) {
                 transform += " scale(" + node.scale + ")";
             }
+            transform += " translateZ(0)";
             applyPrefix(style, "transform", transform);
         }
 
